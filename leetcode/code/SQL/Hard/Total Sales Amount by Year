@@ -1,0 +1,52 @@
+create table #product
+(
+product_id int,
+product_name varchar(50)
+);
+insert into #product values
+(	1	,	'LCPhone'	),
+(	2	,	'LCT-Shirt'	),
+(	3	,	'LCKeychain'	);
+
+create table #sales
+(
+product_id int,
+period_start date,
+period_end date,
+average_daily_sales int);
+
+insert into #sales values
+(	1	,	'1/25/2019'	,	'2/28/2019'	,	100	),
+(	2	,	'12/1/2018'	,	'1/1/2020'	,	10	),
+(	3	,	'12/1/2019'	,	'1/31/2020'	,	1	);
+
+
+
+
+
+---solution
+with t1 as (
+select 
+product_id,
+date_format(period_start, '%Y') year_start,
+case when date_format(period_start, '%Y') = date_format(period_end, '%Y') then null else date_format(period_end, '%Y') end year_end,
+case when date_format(period_start, '%Y') = '2018' and date_format(period_end, '%Y') = '2020' then '2019' else null end year_mid,
+case when date_format(period_start, '%Y') = date_format(period_end, '%Y') then datediff(period_end, period_start) +1 else (datediff(concat(date_format(period_start, '%Y'),'-12-31'), period_start) + 1) end days_year_start,
+case when date_format(period_start, '%Y') = date_format(period_end, '%Y') then 0 else (datediff(period_end, concat(date_format(period_end, '%Y'),'-01-01')) + 1 ) end days_year_end,
+case when date_format(period_start, '%Y') = '2018' and date_format(period_end, '%Y') = '2020' then 365 else 0 end days_year_mid,
+    
+average_daily_sales
+
+from sales
+),
+t2 as (
+select product_id,
+year_start report_year, days_year_start days_in_year
+from t1
+
+union all
+
+select
+product_id,
+year_end report_year, days_year_end days_in_year
+from t1;

@@ -1,0 +1,103 @@
+-- Return the result table ordered by the id.
+
+-- The query result format is in the following example:
+
+-- Accounts table:
+-- +----+----------+
+-- | id | name     |
+-- +----+----------+
+-- | 1  | Winston  |
+-- | 7  | Jonathan |
+-- +----+----------+
+
+-- Logins table:
+-- +----+------------+
+-- | id | login_date |
+-- +----+------------+
+-- | 7  | 2020-05-30 |
+-- | 1  | 2020-05-30 |
+-- | 7  | 2020-05-31 |
+-- | 7  | 2020-06-01 |
+-- | 7  | 2020-06-02 |
+-- | 7  | 2020-06-02 |
+-- | 7  | 2020-06-03 |
+-- | 1  | 2020-06-07 |
+-- | 7  | 2020-06-10 |
+-- +----+------------+
+
+-- Result table:
+-- +----+----------+
+-- | id | name     |
+-- +----+----------+
+-- | 7  | Jonathan |
+-- +----+----------+
+-- User Winston with id = 1 logged in 2 times only in 2 different days, so, Winston is not an active user.
+-- User Jonathan with id = 7 logged in 7 times in 6 different days, five of them were consecutive days, so, Jonathan is an active user.
+
+create table #p
+(
+id int,
+name varchar(20)
+);
+insert into #p values
+(1,'winston'),
+(7,'jonatham');
+
+create table #q
+(
+id int,
+login_date date
+);
+
+insert into #q values
+
+(	2	,	'5/30/2020'	),
+(	1	,	'5/30/2020'	),
+(	7	,	'5/30/2020'	),
+(	7	,	'5/31/2020'	),
+(	7	,	'6/1/2020'	),
+(	7	,	'6/2/2020'	),
+(	7	,	'6/2/2020'	),
+(	7	,	'6/3/2020'	),
+(	1	,	'6/7/2020'	),
+(	7	,	'6/10/2020')
+;
+
+select * from #p;
+select * from #q;
+
+with agg as (
+select id, login_date,
+          lead(login_date) over (partition by id order by login_date) as next_day,
+          case when (row_number() over (partition by id order by login_date)) = 1 then login_date 
+               when (row_number() over (partition by id order by login_date))  > 1 and abs(datediff('days',next_day,login_date))> 1 then login_date end as diff
+from #q group by id,login_date 
+)
+,get_series as
+(select *, last_value(diff ignore nulls) over (partition by id order by login_date ROWS UNBOUNDED PRECEDING ) as diff1
+from agg)
+select t.id,a.name,t.diff1,count(1) from get_series t join #p a on t.id = a.id
+group by t.id,a.name,t.diff1 having count(1) >= 4;  
+
+
+
+
+
+select id, login_date,
+          lead(login_date,4) over (partition by id order by login_date) as next_day,
+          case when (row_number() over (partition by id order by login_date)) = 1 then login_date 
+               when (row_number() over (partition by id order by login_date))  > 1 and abs(datediff('days',next_day,login_date))> 1 then login_date end as diff
+from #q group by id,login_date; 
+
+
+
+
+
+
+
+
+
+
+
+
+
